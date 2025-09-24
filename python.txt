@@ -1,0 +1,36 @@
+import pandas as pd
+from sqlalchemy import create_engine
+
+engine = create_engine('sqlite:///healthcare.db')
+query = "SELECT strftime('%Y-%m', visit_date) AS month, COUNT(*) AS visits FROM visits GROUP BY month ORDER BY month;"
+df_month = pd.read_sql_query(query, engine)
+df_month.head()
+
+
+Typical EDA steps in pandas:
+
+python
+Copy code
+df = pd.read_sql_table('visits', engine)
+df.info()
+df.describe()
+df.isnull().mean()   # missing rate by column
+# groupby examples
+df.groupby('dept')['cost'].agg(['count','mean','sum']).sort_values('sum', ascending=False)
+pd.crosstab(df['dept'], df['outcome'], normalize='index')
+
+
+Visualizations 
+
+import plotly.express as px
+
+fig = px.line(df_month, x='month', y='visits', title='Monthly Visits')
+fig.show()
+
+
+Bar chart top diagnoses:
+
+top10 = df['diag_desc'].value_counts().nlargest(10).reset_index()
+top10.columns = ['diag_desc','count']
+fig = px.bar(top10, x='diag_desc', y='count', title='Top 10 Diagnoses')
+fig.show()
