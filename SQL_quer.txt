@@ -1,0 +1,78 @@
+import pandas as pd
+from sqlalchemy import create_engine
+
+df = pd.read_csv("healthcare_capstone.csv")   # use downloaded path
+engine = create_engine('sqlite:///healthcare.db')   # creates healthcare.db
+df.to_sql('visits', engine, index=False, if_exists='replace')
+# create patients table
+patients = df[['patient_id','age','gender','city','insurance']].drop_duplicates()
+patients.to_sql('patients', engine, index=False, if_exists='replace')
+
+Key SQL queries (examples you’ll run and then load into Python)
+
+1. Monthly visits
+   
+   SELECT strftime('%Y-%m', visit_date) AS month, COUNT(*) AS visits
+FROM visits
+GROUP BY month
+ORDER BY month;
+
+2. Top 10 diagnoses
+
+SELECT diag_desc, COUNT(*) AS cnt
+FROM visits
+GROUP BY diag_desc
+ORDER BY cnt DESC
+LIMIT 10;
+
+3. Average & total cost by department
+
+SELECT dept, AVG(cost) AS avg_cost, SUM(cost) AS total_cost
+FROM visits
+GROUP BY dept
+ORDER BY total_cost DESC;
+
+4. Overall 30-day readmission rate
+
+SELECT SUM(readmitted_30d)*1.0/COUNT(*) AS readmission_rate
+FROM visits;
+
+5. Readmission by age group (CTE)
+
+WITH age_groups AS (
+  SELECT *,
+    CASE
+      WHEN age < 18 THEN '0-17'
+      WHEN age BETWEEN 18 AND 34 THEN '18-34'
+      WHEN age BETWEEN 35 AND 50 THEN '35-50'
+      WHEN age BETWEEN 51 AND 65 THEN '51-65'
+      ELSE '66+'
+    END AS age_group
+  FROM visits
+)
+SELECT age_group, AVG(readmitted_30d) AS readmission_rate
+FROM age_groups
+GROUP BY age_group;
+
+6. Top patients by total cost
+
+SELECT patient_id, COUNT(*) AS visits, SUM(cost) AS total_cost
+FROM visits
+GROUP BY patient_id
+ORDER BY total_cost DESC
+LIMIT 20;
+
+7. Rolling 3-month average cost (using a subquery + window)
+
+SELECT month,
+       monthly_cost,
+       AVG(monthly_cost) OVER (ORDER BY month ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS rolling_3m_avg
+FROM (
+  SELECT strftime('%Y-%m', visit_date) AS month,
+         AVG(cost) AS monthly_cost
+  FROM visits
+  GROUP BY month
+) t
+ORDER BY month;
+
+
